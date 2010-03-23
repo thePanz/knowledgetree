@@ -54,17 +54,13 @@ class pdfConverter extends BaseProcessor
      *
      * @return pdfConverter
      */
-    public function pdfConverter()
-    {
-        $config =& KTConfig::getSingleton();
-		$javaServerUrl = $config->get('indexer/javaLuceneURL');
-		$this->ooHost = $config->get('openoffice/host','127.0.0.1');
-		$this->ooPort = $config->get('openoffice/port','8100');
+    public function pdfConverter() {
+      $config =& KTConfig::getSingleton();
+      $javaServerUrl = $config->get('indexer/javaLuceneURL');
+      $this->ooHost = $config->get('openoffice/host','127.0.0.1');
+      $this->ooPort = $config->get('openoffice/port','8100');
 
-		$this->xmlrpc = XmlRpcLucene::get($javaServerUrl);
-
-
-
+      $this->xmlrpc = XmlRpcLucene::get($javaServerUrl);
     }
 
     /**
@@ -88,8 +84,7 @@ class pdfConverter extends BaseProcessor
      *
      * @return boolean
      */
-    public function processDocument()
-    {
+    public function processDocument() {
         $oStorage = KTStorageManagerUtil::getSingleton();
         $path = $oStorage->temporaryFile($this->document);
         $ext = KTMime::getFileType($this->document->getMimeTypeID());
@@ -197,8 +192,7 @@ class pdfConverter extends BaseProcessor
 	 * @param string $ext The extension of the file
 	 * @return boolean
 	 */
-	function convertFile($filename, $ext)
-	{
+	function convertFile($filename, $ext) {
 	    global $default;
 	    $tempDir = $default->tmpDirectory;
 
