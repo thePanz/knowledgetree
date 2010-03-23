@@ -68,12 +68,13 @@ require_once(KT_LIB_DIR . '/templating/templating.inc.php');
      *
      */
     function setup() {
-    	// Register plugin components
-		$this->registerCriterion('TagCloudCriterion', 'ktcore.criteria.tagcloud', KT_LIB_DIR . '/browse/Criteria.inc');
-		$this->registerDashlet('TagCloudDashlet', 'ktcore.tagcloud.feed.dashlet', 'TagCloudDashlet.php');
-		$this->registerPage('TagCloudRedirection', 'TagCloudRedirectPage', __FILE__);
-		$this->registerPortlet(array(), 'TagCloudPortlet', 'tagcloud.portlet', 'TagCloudPortlet.php');
+      // Register plugin components
+      $this->registerCriterion('TagCloudCriterion', 'ktcore.criteria.tagcloud', KT_LIB_DIR . '/browse/Criteria.inc');
+      $this->registerDashlet('TagCloudDashlet', 'ktcore.tagcloud.feed.dashlet', 'TagCloudDashlet.php');
+      $this->registerPage('TagCloudRedirection', 'TagCloudRedirectPage', __FILE__);
+      $this->registerPortlet(array(), 'TagCloudPortlet', 'tagcloud.portlet', 'TagCloudPortlet.php');
 
+      $this->registerTrigger('copyDocument', 'postValidate', 'KTCopyDocumentTrigger', 'ktcore.triggers.tagcloud.copyDocument', KT_DIR.'/plugins/tagcloud/TagCloudTriggers.php');      
 
         // Check if the tagcloud fielset entry exists, if not, create it
         $iFieldsetId = TagCloudPlugin::tagFieldsetExists();
@@ -108,10 +109,10 @@ require_once(KT_LIB_DIR . '/templating/templating.inc.php');
     	// create the fieldsets entry
     	$oFieldset = KTFieldset::createFromArray(array(
             'name' => _kt('Tag Cloud'),
-	    	'description' => _kt('The following tags are associated with your document'),
+            'description' => _kt('The following tags are associated with your document'),
             'namespace' => 'tagcloud',
             'mandatory' => false,
-	    	'isConditional' => false,
+            'isConditional' => false,
             'isGeneric' => true,
             'isComplete' => false,
             'isComplex' => false,

@@ -63,8 +63,8 @@ class KTAddDocumentTrigger {
         $iDocId = $oDocument->getID();
 
         // get tag id from document_fields table where name = Tag
-		$sQuery = 'SELECT df.id AS id FROM document_fields AS df ' .
-				'WHERE df.name = \'Tag\'';
+        $sQuery = 'SELECT df.id AS id FROM document_fields AS df ' .
+          'WHERE df.name = \'Tag\'';
 
         $sTags = DBUtil::getOneResultKey(array($sQuery), 'id');
         if (PEAR::isError($sTags)) {
@@ -132,7 +132,50 @@ class KTAddDocumentTrigger {
     }
 }
 
+/**
+ * Trigger for document Copy (post-validate)
+ */
+ class KTCopyDocumentTrigger {
+    var $aInfo = null;
+    /**
+     * function to set the info for the trigger
+     *
+     * @param array $aInfo
+     */
+    function setInfo(&$aInfo) {
+      $this->aInfo =& $aInfo;
+    }
+    /**
+     * postValidate method for trigger
+     *
+     * @return unknown
+     */    
+    function postValidate() {
+      $oDocument =& $this->aInfo['document'];
+      $oSDocument =& $this->aInfo['source_document'];
 
+      $newDocID = $oDocument->getID();
+      $origDocID = $oSDocument->getID();
+      
+      $docTagsTable = KTUtil::getTableName('document_tags');
+      
+      $query = "SELECT tag_id FROM $docTagsTable WHERE document_id = $origDocID";
+      $res = DBUtil::getResultArrayKey($query, 'tag_id');
+      
+      if (PEAR::isError($res)) {
+        return $res;
+      }
+      else {      
+        foreach($res as $tagid) {
+          DBUtil::autoInsert($docTagsTable, array(
+            'document_id'=>$newDocID,
+            'tag_id'=>$tagid),
+            array('noid'=>true));
+        }
+      }
+    }
+ 
+ }
 /**
  * Trigger for document edit (postValidate)
  *
@@ -200,12 +243,11 @@ class KTEditDocumentTrigger {
         		foreach($aMeta as $aMetaData)
         		{
         			$oProxy = $aMetaData[0];
-        			if($oProxy->iId == $sTags)
-        			{
+        			if($oProxy->iId == $sTags) {
         				$tagString = $aMetaData[1];
         				break;
 					}
-        		}
+        }
 			}
 			if($tagString != ''){
 	        	$words_table = KTUtil::getTableName('tag_words');
