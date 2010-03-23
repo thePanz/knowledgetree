@@ -32,7 +32,7 @@
  * logo is not reasonably feasible for technical reasons, the Appropriate Legal Notices
  * must display the words "Powered by KnowledgeTree" and retain the original 
  * copyright notice.
- * Contributor( s): ______________________________________
+ * Contributor( s): thePanz (thepanz@gmail.com)
  *
  */
 
@@ -52,7 +52,8 @@ require_once('PDFGeneratorAction.php');
     }
     
     function setup() {
-        $this->registerAction('documentaction', 'PDFGeneratorAction', 'ktstandard.pdf.generate', $sFilename = null);
+        $this->registerAction('documentaction', 'PDFGeneratorAction', 'ktstandard.pdf.generate', 'PDFGeneratorAction.php');
+        $this->registerWorkflowTrigger('ktcore.workflowtriggers.pdfgenerator.duplicate' , 'PDFGeneratorWorkflowTriggerDuplicatePDF', 'PDFGeneratorWorkflowTriggers.php');
     }
  }
 $oPluginRegistry =& KTPluginRegistry::getSingleton();
