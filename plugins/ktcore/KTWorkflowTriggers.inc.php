@@ -33,7 +33,7 @@
  * logo is not reasonably feasible for technical reasons, the Appropriate Legal Notices
  * must display the words "Powered by KnowledgeTree" and retain the original 
  * copyright notice.
- * Contributor( s): ______________________________________
+ * Contributor( s): thePanz (thepanz@gmail.com)
  *
  */
 
@@ -475,9 +475,9 @@ class BaseCopyActionTrigger extends KTWorkflowTrigger {
         $oToFolder = Folder::get($iFolderId);
         if (PEAR::isError($oFolder)) {
         	if ($this->isCopy)
-	            return PEAR::raiseError(_kt('The folder to which this document should be copied does not exist.  Cancelling the transition - please contact a system administrator.'));
+	            return PEAR::raiseError(_kt('The folder to which this document should be copied does not exists.  Cancelling the transition - please contact a system administrator.'));
             else
-            	return PEAR::raiseError(_kt('The folder to which this document should be moved does not exist.  Cancelling the transition - please contact a system administrator.'));
+            	return PEAR::raiseError(_kt('The folder to which this document should be moved does not exists.  Cancelling the transition - please contact a system administrator.'));
         }
 
         if ($this->isCopy)
@@ -488,8 +488,12 @@ class BaseCopyActionTrigger extends KTWorkflowTrigger {
 
     function displayConfiguration($args) {
         $oTemplating =& KTTemplating::getSingleton();
-		$oTemplate = $oTemplating->loadTemplate('ktcore/workflowtriggers/moveaction');
 
+        if ($this->isCopy)
+          $oTemplate = $oTemplating->loadTemplate('ktcore/workflowtriggers/copyaction');
+        else
+          $oTemplate = $oTemplating->loadTemplate('ktcore/workflowtriggers/moveaction');
+          
         require_once(KT_LIB_DIR . '/browse/DocumentCollection.inc.php');
         require_once(KT_LIB_DIR . '/browse/columnregistry.inc.php');
 
