@@ -40,22 +40,22 @@ require_once(KT_LIB_DIR . '/workflow/workflowtrigger.inc.php');
 require_once(KT_DIR . '/plugins/pdfConverter/pdfConverter.php');
 
 class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
-    var $sNamespace;
-    var $sFriendlyName;
-    var $sDescription;
-    var $oTriggerInstance;
-    var $aConfig = array();
+  var $sNamespace;
+  var $sFriendlyName;
+  var $sDescription;
+  var $oTriggerInstance;
+  var $aConfig = array();
 
-    // generic requirements - both can be true
-    var $bIsGuard = false;
-    var $bIsAction = true;
+  // generic requirements - both can be true
+  var $bIsGuard = false;
+  var $bIsAction = true;
 
   public function PDFGeneratorWorkflowTriggerDuplicatePDF() {
-    	$this->sNamespace = 'ktcore.workflowtriggers.pdfgenerator.duplicate';
-    	$this->sFriendlyName = _kt('Copy the Document as PDF');
-    	$this->sDescription = _kt('This action will create a pdf copy of the document as a new document.');
+    $this->sNamespace = 'ktcore.workflowtriggers.pdfgenerator.duplicate';
+    $this->sFriendlyName = _kt('Copy the Document as PDF');
+    $this->sDescription = _kt('This action will create a pdf copy of the document as a new document.');
   }
-  
+
   // perform more expensive checks -before- performTransition.
   // Taken from : plugins\ktcore\KTWorkflowTriggers.inc.php
   public function precheckTransition($oDocument, $oUser) {
@@ -67,51 +67,72 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
 
     return true;
   }
+  
+  /**
+   * Actually duplicate the Document: PDF creation, document copy, and PDF association
+   */
   function performTransition($oDocument, $oUser) {
+    global $default;
     $iFolderId = KTUtil::arrayGet($this->aConfig, 'folder_id');
     $oToFolder = Folder::get($iFolderId);
     if (PEAR::isError($oFolder)) {
       return PEAR::raiseError(_kt('The folder to which this document should be copied as PDF does not exist.  Cancelling the transition - please contact a system administrator.'));
     }
-    
+
     // Create the PDF
+    $default->log->error("Create the PDF");
     $pdfFile = $this->createPDF($oDocument);
     if (PEAR::isError($pdfFile)) {
       return $pdfFile;
     }
-    
+
+    $default->log->error("Duplicate_Copy the Document");
     //  Duplicate/Copy the Document
     $oNewDocument = KTDocumentUtil::copy($oDocument, $oToFolder);
     if (PEAR::isError($oNewDocument)) {
       return $oNewDocument;
-    }    
-    
+    }
+
+    $default->log->error("Associate PDF with the new document [$pdfFile]");
     // Associate PDF with the new document
     $aOptions = array(
-      'temp_filename' => $pdfFile,
-      'cleanup_initial_file' => true,
+      'temp_file' => $pdfFile,
+      'cleanup_initial_file' => false,
     );
-      
+
     $res = KTDocumentUtil::storeContents($oNewDocument, $oContents = null, $aOptions);
     if (PEAR::isError($res)) {
+      $default->log->error("PDF WorkflowTrigger error: can't associate PDF file to document." . $res->message);
       // Remove the created document (not-correct)
       KTDocumentUtil::delete($oNewDocument, _kt("PDF WorkflowTrigger error: can't create associate PDF file to document."));
       return $res;
     }
     
+    // Changing MIME-Filetype
+    // TODO: maybe use the KTDocumentUtil::rename($oDocument, $sFilename, $oUser) ?
+    $iMimeTypeId = KTMime::getMimeTypeID('application/pdf');
+    $oNewDocument->setMimeTypeId($iMimeTypeId);
+    
+    $bSuccess = $oNewDocument->update();
+    if ($bSuccess !== true) {
+      return PEAR::raiseError(_kt("PDF WorkflowTrigger error: can't finalize document data as PDF."));
+    }
+    
+    // Returns the new document, so other plugin can extend this class to further handle the new PDF document
     return $oNewDocument;
   }
-  
-  
+
+
   /**
    * Create the PDF file for the given document (or re-use the already created one)
    * Returns the PDF filename or PEAR::error
    */
-  private function createPDF(&$oDocument) {  
+  private function createPDF(&$oDocument) {
     global $default;
     $dir = $default->pdfDirectory;
+    $iDocId = $oDocument->iId;
     $file = $dir .'/'. $iDocId . '.pdf';
-    print __class__ . '::' . __function__ . '() .'." file=$file<br />";
+    $default->log->error(__class__ . '::' . __function__ . '() PRE-CONV: '." file=$file'");
     if (!file_exists($file)) {
       // If not - create one
       $converter = new pdfConverter();
@@ -121,6 +142,7 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
         return PEAR::raiseError(_kt('PDF file could not be generated; Please contact your System Administrator for assistance.'));
       }
     }
+    $default->log->error(__class__ . '::' . __function__ . '() CONVERTED! : '." file=$file'");
     return $file;
   }
 
@@ -144,8 +166,8 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
 
     $qsFrag = array();
     foreach ($args as $k => $v) {
-        if ($k == 'action') { $v = 'editactiontrigger'; } // horrible hack - we really need iframe embedding.
-        $qsFrag[] = sprintf('%s=%s',urlencode($k), urlencode($v));
+      if ($k == 'action') { $v = 'editactiontrigger'; } // horrible hack - we really need iframe embedding.
+      $qsFrag[] = sprintf('%s=%s',urlencode($k), urlencode($v));
     }
     $qs = implode('&',$qsFrag);
     $aOptions['result_url'] = KTUtil::addQueryStringSelf($qs);
@@ -154,25 +176,23 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
     $fFolderId = KTUtil::arrayGet($_REQUEST, 'fFolderId', KTUtil::arrayGet($this->aConfig, 'folder_id', 1));
 
     $oFolder = Folder::get($fFolderId);
-        if(PEAR::isError($oFolder))
-    {
+    if(PEAR::isError($oFolder)) {
       $iRoot = 1;
       $oFolder = Folder::get($iRoot);
       $fFolderId = 1;
-      
     }
 
     $collection->setOptions($aOptions);
     $collection->setQueryObject(new BrowseQuery($fFolderId, $this->oUser));
     $collection->setColumnOptions('ktcore.columns.singleselection', array(
-        'rangename' => 'folder_id',
-        'show_folders' => true,
-        'show_documents' => false,
+      'rangename' => 'folder_id',
+      'show_folders' => true,
+      'show_documents' => false,
     ));
 
     $collection->setColumnOptions('ktcore.columns.title', array(
-        'direct_folder' => false,
-        'folder_link' => $aOptions['result_url'],
+      'direct_folder' => false,
+      'folder_link' => $aOptions['result_url'],
     ));
 
 
@@ -181,26 +201,26 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
     $folder_path_ids = explode(',', $oFolder->getParentFolderIds());
     $folder_path_ids[] = $oFolder->getId();
     if ($folder_path_ids[0] == 0) {
-        array_shift($folder_path_ids);
-        array_shift($folder_path_names);
+      array_shift($folder_path_ids);
+      array_shift($folder_path_names);
     }
 
     foreach (range(0, count($folder_path_ids) - 1) as $index) {
-        $id = $folder_path_ids[$index];
-        $qsFrag2 = $qsFrag;
-        $qsFrag2[] = sprintf('fFolderId=%d', $id);
-        $qs2 = implode('&',$qsFrag2);
-        $url = KTUtil::addQueryStringSelf($qs2);
-        $aBreadcrumbs[] = sprintf('<a href="%s">%s</a>', $url, htmlentities($folder_path_names[$index], ENT_NOQUOTES, 'UTF-8'));
+      $id = $folder_path_ids[$index];
+      $qsFrag2 = $qsFrag;
+      $qsFrag2[] = sprintf('fFolderId=%d', $id);
+      $qs2 = implode('&',$qsFrag2);
+      $url = KTUtil::addQueryStringSelf($qs2);
+      $aBreadcrumbs[] = sprintf('<a href="%s">%s</a>', $url, htmlentities($folder_path_names[$index], ENT_NOQUOTES, 'UTF-8'));
     }
 
     $sBreadcrumbs = implode(' &raquo; ', $aBreadcrumbs);
 
     $aTemplateData = array(
-              'context' => $this,
-              'breadcrumbs' => $sBreadcrumbs,
-              'collection' => $collection,
-              'args' => $args,
+      'context' => $this,
+      'breadcrumbs' => $sBreadcrumbs,
+      'collection' => $collection,
+      'args' => $args,
     );
     return $oTemplate->render($aTemplateData);
   }
@@ -209,8 +229,8 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
     $folder_id = KTUtil::arrayGet($_REQUEST, 'folder_id', null);
     $oFolder = Folder::get($folder_id);
     if (PEAR::isError($oFolder)) {
-        // silenty ignore
-        $folder_id = null;
+      // silenty ignore
+      $folder_id = null;
     }
 
     $config = array();
