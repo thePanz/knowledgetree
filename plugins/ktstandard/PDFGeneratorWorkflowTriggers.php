@@ -35,7 +35,7 @@
  * Contributor( s): thePanz (thepanz@gmail.com)
  *
  */
- 
+
 require_once(KT_LIB_DIR . '/workflow/workflowtrigger.inc.php');
 require_once(KT_DIR . '/plugins/pdfConverter/pdfConverter.php');
 
@@ -86,7 +86,7 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
       return $pdfFile;
     }
 
-    $default->log->error("Duplicate_Copy the Document");
+    $default->log->error("Duplicate-and-Copy the Document");
     //  Duplicate/Copy the Document
     $oNewDocument = KTDocumentUtil::copy($oDocument, $oToFolder);
     if (PEAR::isError($oNewDocument)) {
@@ -102,14 +102,18 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
 
     $res = KTDocumentUtil::storeContents($oNewDocument, $oContents = null, $aOptions);
     if (PEAR::isError($res)) {
-      $default->log->error("PDF WorkflowTrigger error: can't associate PDF file to document." . $res->message);
+      $default->log->error("PDF Error: can't associate PDF file to document. storeDocument error = " . $res->message);
       // Remove the created document (not-correct)
       KTDocumentUtil::delete($oNewDocument, _kt("PDF WorkflowTrigger error: can't create associate PDF file to document."));
       return $res;
     }
     
+    // Change filename reporeted by Document: renamed to .PDF
+    // TODO: maybe use the KTDocumentUtil::rename($oDocument, $sFilename, $oUser) for rename+MimeType?
+    $sFilename= pathinfo($oNewDocument->getFileName(), PATHINFO_FILENAME);
+    $oNewDocument->setFileName($sFilename . '.pdf');
+    
     // Changing MIME-Filetype
-    // TODO: maybe use the KTDocumentUtil::rename($oDocument, $sFilename, $oUser) ?
     $iMimeTypeId = KTMime::getMimeTypeID('application/pdf');
     $oNewDocument->setMimeTypeId($iMimeTypeId);
     
@@ -132,17 +136,16 @@ class PDFGeneratorWorkflowTriggerDuplicatePDF extends KTWorkflowTrigger {
     $dir = $default->pdfDirectory;
     $iDocId = $oDocument->iId;
     $file = $dir .'/'. $iDocId . '.pdf';
-    $default->log->error(__class__ . '::' . __function__ . '() PRE-CONV: '." file=$file'");
     if (!file_exists($file)) {
       // If not - create one
       $converter = new pdfConverter();
       $converter->setDocument($oDocument);
       $res = $converter->processDocument();
       if ($res !== true) {
+        $default->log->error(__class__ . '::' . __function__ . '() PDF file could not be generated.');
         return PEAR::raiseError(_kt('PDF file could not be generated; Please contact your System Administrator for assistance.'));
       }
     }
-    $default->log->error(__class__ . '::' . __function__ . '() CONVERTED! : '." file=$file'");
     return $file;
   }
 
